@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/Astrasv/go-gully-backend/database"
+	"github.com/Astrasv/go-gully-backend/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +29,12 @@ func QueryAgent(c *gin.Context) {
 
 	if req.Query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
+		return
+	}
+
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -58,6 +66,13 @@ func QueryAgent(c *gin.Context) {
 		})
 		return
 	}
+
+	query := models.Query{
+		UserID:   userID.(uint),
+		Query:    req.Query,
+		Response: result.Response,
+	}
+	database.GetDB().Create(&query)
 
 	c.JSON(resp.StatusCode, result)
 }

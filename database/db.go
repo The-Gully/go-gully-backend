@@ -19,7 +19,7 @@ func Connect(dsn string) *gorm.DB {
 }
 
 func Migrate() {
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{}, &models.Query{})
 }
 
 func GetDB() *gorm.DB {
