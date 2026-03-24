@@ -17,6 +17,8 @@ func Setup(r *gin.Engine) {
 		authRoutes.GET("/google/login", auth.Login)
 		authRoutes.GET("/google/callback", auth.Callback)
 		authRoutes.POST("/logout", auth.Logout)
+		// authRoutes.POST("/query-agent", handlers.QueryAgent) // To test without auth
+
 	}
 
 	protected := r.Group("/api")
@@ -25,6 +27,7 @@ func Setup(r *gin.Engine) {
 		protected.GET("/me", auth.GetCurrentUser)
 		protected.GET("/validate", handlers.Validate)
 		protected.GET("/protected", handlers.Protected)
+		protected.POST("/query-agent", handlers.QueryAgent)
 	}
 }
 
