@@ -89,3 +89,35 @@ func GetQueryHistory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"queries": queries})
 }
+
+func GetEntities(c *gin.Context) {
+	
+	// Comment this block to test without auth
+	_, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	baseURL := os.Getenv("SQL_AGENT_URL")
+	if baseURL == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "SQL_AGENT_URL not configured"})
+		return
+	}
+
+	agentURL := baseURL + "/entities"
+	resp, err := http.Get(agentURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to connect to SQL agent"})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read response"})
+		return
+	}
+
+	c.Data(resp.StatusCode, "application/json", body)
+}

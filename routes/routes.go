@@ -17,7 +17,11 @@ func Setup(r *gin.Engine) {
 		authRoutes.GET("/google/login", auth.Login)
 		authRoutes.GET("/google/callback", auth.Callback)
 		authRoutes.POST("/logout", auth.Logout)
-		// authRoutes.POST("/query-agent", handlers.QueryAgent) // To test without auth
+
+		// To test without auth
+		// authRoutes.POST("/query-agent", handlers.QueryAgent) 
+		// authRoutes.GET("/entities", handlers.GetEntities) //-> Comment a block in handlers/sql_agent.go
+		
 
 	}
 
@@ -29,6 +33,7 @@ func Setup(r *gin.Engine) {
 		protected.GET("/protected", handlers.Protected)
 		protected.POST("/query-agent", handlers.QueryAgent)
 		protected.GET("/query-history", handlers.GetQueryHistory)
+		// protected.GET("/entities", handlers.GetEntities)
 	}
 }
 
