@@ -1,0 +1,51 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# Binaries and executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/server
+gully-backend
+go-gully-backend.exe
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+coverage.html
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Stack trace logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build output
+dist/
+build/
