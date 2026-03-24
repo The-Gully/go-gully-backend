@@ -28,6 +28,7 @@ func Setup(r *gin.Engine) {
 		protected.GET("/validate", handlers.Validate)
 		protected.GET("/protected", handlers.Protected)
 		protected.POST("/query-agent", handlers.QueryAgent)
+		protected.GET("/query-history", handlers.GetQueryHistory)
 	}
 }
 

@@ -76,3 +76,16 @@ func QueryAgent(c *gin.Context) {
 
 	c.JSON(resp.StatusCode, result)
 }
+
+func GetQueryHistory(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var queries []models.Query
+	database.GetDB().Where("user_id = ?", userID).Order("created_at DESC").Find(&queries)
+
+	c.JSON(http.StatusOK, gin.H{"queries": queries})
+}
