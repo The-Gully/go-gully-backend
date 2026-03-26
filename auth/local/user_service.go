@@ -1,11 +1,16 @@
 package local
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/Astrasv/go-gully-backend/database"
 	"github.com/Astrasv/go-gully-backend/models"
 )
+
+const TokenExpiryDuration = 24 * time.Hour
 
 var (
 	ErrUserNotFound       = errors.New("user not found")
@@ -89,4 +94,21 @@ func AuthenticateUser(emailOrUsername, password string) (*models.User, error) {
 	}
 
 	return &user, nil
+}
+
+func GenerateVerificationToken(user *models.User) (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	token := hex.EncodeToString(bytes)
+	user.VerificationToken = token
+	user.VerificationExpiresAt = time.Now().Add(TokenExpiryDuration)
+
+	if err := database.GetDB().Save(user).Error; err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

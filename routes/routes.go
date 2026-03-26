@@ -5,6 +5,7 @@ import (
 
 	"github.com/Astrasv/go-gully-backend/auth/google"
 	"github.com/Astrasv/go-gully-backend/auth/local"
+	"github.com/Astrasv/go-gully-backend/auth/verification"
 	"github.com/Astrasv/go-gully-backend/handlers"
 	"github.com/Astrasv/go-gully-backend/middleware"
 	ratelimiter "github.com/Astrasv/go-gully-backend/middleware/ratelimiter"
@@ -22,21 +23,21 @@ func Setup(r *gin.Engine) {
 		authRoutes.POST("/register", local.Register)
 		authRoutes.POST("/login", local.Login)
 
-		// To test without auth
-		// authRoutes.POST("/query-agent", handlers.QueryAgent)
-		// authRoutes.GET("/entities", handlers.GetEntities) //-> Comment a block in handlers/sql_agent.go
+		authRoutes.GET("/verify-email", verification.VerifyEmailRedirect)
+		authRoutes.POST("/verify-email", verification.VerifyEmailAPI)
+		authRoutes.POST("/resend-verification", verification.ResendVerification)
 
 	}
 
 	protected := r.Group("/api")
 	protected.Use(middleware.RequireAuth)
+	protected.Use(middleware.RequireVerifiedEmail)
 	{
 		protected.GET("/me", google.GetCurrentUser)
 		protected.GET("/validate", handlers.Validate)
 		protected.GET("/protected", handlers.Protected)
 		protected.POST("/query-agent", handlers.QueryAgent)
 		protected.GET("/query-history", handlers.GetQueryHistory)
-		// protected.GET("/entities", handlers.GetEntities)
 	}
 }
 

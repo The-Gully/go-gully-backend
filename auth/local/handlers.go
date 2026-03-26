@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/Astrasv/go-gully-backend/auth/google"
+	"github.com/Astrasv/go-gully-backend/email"
 	"github.com/Astrasv/go-gully-backend/models"
 	"github.com/gin-gonic/gin"
 )
@@ -54,24 +55,21 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	session, err := google.GetStore().Get(c.Request, google.SessionName)
+	token, err := GenerateVerificationToken(user)
 	if err != nil {
-		log.Printf("[LOCAL AUTH] Session error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "session_error"})
+		log.Printf("[LOCAL AUTH] Failed to generate verification token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "verification_setup_failed"})
 		return
 	}
 
-	session.Values[google.SessionKey] = user.ID
-	if err := session.Save(c.Request, c.Writer); err != nil {
-		log.Printf("[LOCAL AUTH] Session save error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "session_error"})
-		return
+	if err := email.SendVerificationEmail(user.Email, user.Username, token); err != nil {
+		log.Printf("[LOCAL AUTH] Failed to send verification email: %v", err)
 	}
 
 	frontendURL := os.Getenv("FRONTEND_URL")
 	c.JSON(http.StatusCreated, gin.H{
 		"message":  "registration_successful",
-		"redirect": frontendURL + "/dashboard",
+		"redirect": frontendURL + "/verify-email",
 		"user":     user,
 	})
 }

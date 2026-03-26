@@ -3,6 +3,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/Astrasv/go-gully-backend/auth/google"
 	"github.com/Astrasv/go-gully-backend/models"
@@ -45,6 +46,37 @@ func RequireAuth(c *gin.Context) {
 	c.Set("user", user)
 	c.Set("userID", user.ID)
 	c.Set("userRole", user.Role)
+	c.Next()
+}
+
+func RequireVerifiedEmail(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	u, ok := user.(*models.User)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "invalid_user"})
+		return
+	}
+
+	if u.Provider != "local" {
+		c.Next()
+		return
+	}
+
+	if !u.EmailVerified {
+		frontendURL := os.Getenv("FRONTEND_URL")
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+			"error":    "email_not_verified",
+			"message":  "please verify your email address",
+			"redirect": frontendURL + "/verify-email",
+		})
+		return
+	}
+
 	c.Next()
 }
 
