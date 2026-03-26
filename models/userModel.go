@@ -5,6 +5,7 @@ import "gorm.io/gorm"
 type User struct {
 	gorm.Model
 	Email      string `gorm:"unique" json:"email"`
+	Username   string `gorm:"unique" json:"username"`
 	Password   string `json:"-"`
 	ProviderID string `gorm:"index" json:"provider_id"`
 	Role       string `gorm:"default:user" json:"role"`

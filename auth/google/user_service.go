@@ -1,4 +1,4 @@
-package auth
+package google
 
 import (
 	"github.com/Astrasv/go-gully-backend/database"

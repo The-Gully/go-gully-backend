@@ -1,4 +1,4 @@
-package auth
+package google
 
 import (
 	"encoding/gob"

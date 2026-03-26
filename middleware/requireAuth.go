@@ -4,13 +4,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Astrasv/go-gully-backend/auth"
+	"github.com/Astrasv/go-gully-backend/auth/google"
 	"github.com/Astrasv/go-gully-backend/models"
 	"github.com/gin-gonic/gin"
 )
 
 func RequireAuth(c *gin.Context) {
-	store := auth.GetStore()
+	store := google.GetStore()
 	session, err := store.Get(c.Request, "session")
 	if err != nil {
 		log.Printf("[AUTH] Middleware session error: %v", err)
@@ -18,7 +18,7 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
-	userID, exists := session.Values[auth.SessionKey]
+	userID, exists := session.Values[google.SessionKey]
 	if !exists || userID == nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -31,7 +31,7 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
-	user, err := auth.FindUserByID(id)
+	user, err := google.FindUserByID(id)
 	if err != nil {
 		log.Printf("[AUTH] User not found: %v", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})

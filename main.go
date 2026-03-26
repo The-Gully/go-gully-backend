@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Astrasv/go-gully-backend/auth"
+	"github.com/Astrasv/go-gully-backend/auth/google"
 	"github.com/Astrasv/go-gully-backend/middleware"
 	"github.com/Astrasv/go-gully-backend/routes"
 	"github.com/gin-gonic/gin"
@@ -12,11 +12,11 @@ import (
 
 func init() {
 	godotenv.Load()
-	auth.LoadEnvAndConnect()
+	google.LoadEnvAndConnect()
 }
 
 func main() {
-	auth.Initialize(
+	google.Initialize(
 		os.Getenv("GOOGLE_CLIENT_ID"),
 		os.Getenv("GOOGLE_CLIENT_SECRET"),
 		os.Getenv("GOOGLE_CALLBACK_URL"),

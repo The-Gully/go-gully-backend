@@ -3,7 +3,8 @@ package routes
 import (
 	"time"
 
-	"github.com/Astrasv/go-gully-backend/auth"
+	"github.com/Astrasv/go-gully-backend/auth/google"
+	"github.com/Astrasv/go-gully-backend/auth/local"
 	"github.com/Astrasv/go-gully-backend/handlers"
 	"github.com/Astrasv/go-gully-backend/middleware"
 	ratelimiter "github.com/Astrasv/go-gully-backend/middleware/ratelimiter"
@@ -14,21 +15,23 @@ func Setup(r *gin.Engine) {
 	authRoutes := r.Group("/auth")
 	authRoutes.Use(RateLimitMiddleware())
 	{
-		authRoutes.GET("/google/login", auth.Login)
-		authRoutes.GET("/google/callback", auth.Callback)
-		authRoutes.POST("/logout", auth.Logout)
+		authRoutes.GET("/google/login", google.Login)
+		authRoutes.GET("/google/callback", google.Callback)
+		authRoutes.POST("/logout", google.Logout)
+
+		authRoutes.POST("/register", local.Register)
+		authRoutes.POST("/login", local.Login)
 
 		// To test without auth
-		// authRoutes.POST("/query-agent", handlers.QueryAgent) 
+		// authRoutes.POST("/query-agent", handlers.QueryAgent)
 		// authRoutes.GET("/entities", handlers.GetEntities) //-> Comment a block in handlers/sql_agent.go
-		
 
 	}
 
 	protected := r.Group("/api")
 	protected.Use(middleware.RequireAuth)
 	{
-		protected.GET("/me", auth.GetCurrentUser)
+		protected.GET("/me", google.GetCurrentUser)
 		protected.GET("/validate", handlers.Validate)
 		protected.GET("/protected", handlers.Protected)
 		protected.POST("/query-agent", handlers.QueryAgent)
