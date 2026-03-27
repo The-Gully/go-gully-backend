@@ -1,6 +1,9 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -11,6 +14,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+//go:embed docs/openapi.yaml
+var swaggerYAML embed.FS
+
+func getSwaggerFS() http.FileSystem {
+	subFS, err := fs.Sub(swaggerYAML, "docs")
+	if err != nil {
+		return http.FS(swaggerYAML)
+	}
+	return http.FS(subFS)
+}
 
 func init() {
 	godotenv.Load()
@@ -40,6 +54,18 @@ func main() {
 	r.Use(middleware.CORS())
 
 	routes.Setup(r)
+
+	r.GET("/swagger.yaml", func(c *gin.Context) {
+		data, _ := swaggerYAML.ReadFile("docs/openapi.yaml")
+		c.Data(200, "application/x-yaml", data)
+	})
+
+	r.GET("/docs/*any", func(c *gin.Context) {
+		fs := getSwaggerFS()
+		fileServer := http.FileServer(fs)
+		c.Request.URL.Path = "/openapi.yaml"
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	})
 
 	r.Run(":" + os.Getenv("PORT"))
 }

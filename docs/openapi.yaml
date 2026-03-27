@@ -1,0 +1,680 @@
+openapi: 3.0.3
+info:
+  title: Gully API
+  description: |
+    Backend API for Gully - a natural language SQL query tool with AI-powered query generation.
+    
+    ## Authentication
+    This API uses session-based authentication. After login, a secure HTTP-only cookie 
+    is set automatically. Include credentials in requests to maintain the session.
+    
+    ## Rate Limiting
+    Authentication endpoints (`/auth/*`) are rate-limited to 1 request per second per IP.
+    
+    ## CORS
+    This API supports CORS for frontend applications running on localhost.
+  version: 1.0.0
+  contact:
+    name: Gully Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.gully.app
+    description: Production server
+
+security:
+  - sessionCookie: []
+
+tags:
+  - name: Authentication
+    description: User registration, login, and OAuth flows
+  - name: Email Verification
+    description: Email verification for local accounts
+  - name: User
+    description: Current user operations
+  - name: Query Agent
+    description: Natural language to SQL conversion
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Creates a new user account with email and password.
+        An email verification link will be sent to the provided email.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              username: johndoe
+              password: securePassword123
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+              example:
+                message: registration_successful
+                redirect: http://localhost:3000/verify-email
+                user:
+                  ID: 1
+                  email: user@example.com
+                  username: johndoe
+                  role: user
+                  provider: local
+                  avatar_url: ""
+                  name: ""
+                  email_verified: false
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with credentials
+      description: |
+        Authenticates a user with email or username and password.
+        Sets a session cookie on successful login.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email_or_username: user@example.com
+              password: securePassword123
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Session cookie (session=<token>; HttpOnly; Secure; SameSite=Lax)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                message: login_successful
+                redirect: http://localhost:3000/dashboard
+                user:
+                  ID: 1
+                  email: user@example.com
+                  username: johndoe
+                  role: user
+                  provider: local
+                  email_verified: true
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout current user
+      description: Clears the session cookie and logs out the user.
+      operationId: logoutUser
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: logged_out
+
+  /auth/google/login:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate Google OAuth login
+      description: |
+        Redirects to Google's OAuth consent page. After user authorization,
+        Google redirects back to `/auth/google/callback`.
+      operationId: googleLogin
+      security: []
+      responses:
+        '302':
+          description: Redirect to Google OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Google OAuth authorization URL
+
+  /auth/google/callback:
+    get:
+      tags:
+        - Authentication
+      summary: Google OAuth callback
+      description: |
+        Handles the OAuth callback from Google. Creates or updates user in database
+        and sets session cookie.
+      operationId: googleCallback
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from Google
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '302':
+          description: Redirect to dashboard on success
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Redirect URL (FRONTEND_URL/dashboard)
+        '400':
+          description: OAuth error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/verify-email:
+    get:
+      tags:
+        - Email Verification
+      summary: Verify email (redirect mode)
+      description: |
+        Verifies email using a token passed as query parameter.
+        Redirects to frontend with verification status.
+      operationId: verifyEmailRedirect
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 64-character hex verification token
+      responses:
+        '302':
+          description: Redirect to frontend with status
+          headers:
+            Location:
+              schema:
+                type: string
+              description: FRONTEND_URL/verify-email?status=success or ?status=error
+
+    post:
+      tags:
+        - Email Verification
+      summary: Verify email (API mode)
+      description: |
+        Verifies email using a token passed in request body.
+        Use this for programmatic verification without redirects.
+      operationId: verifyEmailAPI
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            example:
+              token: "a1b2c3d4e5f6..."
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: email_verified_successfully
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/resend-verification:
+    post:
+      tags:
+        - Email Verification
+      summary: Resend verification email
+      description: |
+        Sends a new verification email to the specified address.
+        Rate-limited by the auth rate limiter.
+      operationId: resendVerification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+            example:
+              email: user@example.com
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: verification_email_sent
+        '400':
+          description: Invalid email, already verified, or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to send email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/me:
+    get:
+      tags:
+        - User
+      summary: Get current user
+      description: Returns the currently authenticated user's profile information.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                user:
+                  ID: 1
+                  email: user@example.com
+                  username: johndoe
+                  role: user
+                  provider: google
+                  avatar_url: https://lh3.googleusercontent.com/...
+                  name: John Doe
+                  email_verified: true
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/validate:
+    get:
+      tags:
+        - User
+      summary: Validate authentication
+      description: |
+        Simple endpoint to check if the current session is valid.
+        Useful for checking auth state on page load.
+      operationId: validateAuth
+      responses:
+        '200':
+          description: Session is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: You are authenticated
+
+  /api/protected:
+    get:
+      tags:
+        - User
+      summary: Test protected endpoint
+      description: |
+        A test endpoint that returns the current user info.
+        Requires authentication.
+      operationId: protectedEndpoint
+      responses:
+        '200':
+          description: Protected resource accessed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtectedResponse'
+              example:
+                message: This is a secured endpoint
+                user:
+                  ID: 1
+                  email: user@example.com
+                  username: johndoe
+                  role: user
+                  provider: local
+                  email_verified: true
+
+  /api/query-agent:
+    post:
+      tags:
+        - Query Agent
+      summary: Query the SQL agent
+      description: |
+        Sends a natural language query to the AI-powered SQL agent.
+        Returns the generated SQL query.
+        The query is saved to the user's history.
+      operationId: queryAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            example:
+              query: Show me all users who signed up in the last 30 days
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                response: "SELECT * FROM users WHERE created_at >= NOW() - INTERVAL '30 days';"
+        '400':
+          description: Invalid request (empty query)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: SQL agent service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/query-history:
+    get:
+      tags:
+        - Query Agent
+      summary: Get query history
+      description: Returns the current user's query history, sorted by most recent.
+      operationId: getQueryHistory
+      responses:
+        '200':
+          description: Query history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryHistoryResponse'
+              example:
+                queries:
+                  - ID: 2
+                    UserID: 1
+                    Query: Show me all users
+                    Response: "SELECT * FROM users;"
+                    CreatedAt: "2026-03-27T10:30:00Z"
+                  - ID: 1
+                    UserID: 1
+                    Query: List active subscriptions
+                    Response: "SELECT * FROM subscriptions WHERE status = 'active';"
+                    CreatedAt: "2026-03-27T10:00:00Z"
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Session cookie set after login (HTTP-only)
+
+  schemas:
+    User:
+      type: object
+      properties:
+        ID:
+          type: integer
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User's email address
+        username:
+          type: string
+          description: Unique username
+        role:
+          type: string
+          enum: [user, admin]
+          description: User's role
+        provider:
+          type: string
+          enum: [local, google]
+          description: Authentication provider
+        avatar_url:
+          type: string
+          nullable: true
+          description: Profile picture URL (Google OAuth users)
+        name:
+          type: string
+          nullable: true
+          description: Display name
+        email_verified:
+          type: boolean
+          description: Whether email has been verified
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Valid email address
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: Alphanumeric username with underscores
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Minimum 8 characters
+
+    RegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: registration_successful
+        redirect:
+          type: string
+          format: uri
+          description: URL to redirect user to
+        user:
+          $ref: '#/components/schemas/User'
+
+    LoginRequest:
+      type: object
+      required:
+        - email_or_username
+        - password
+      properties:
+        email_or_username:
+          type: string
+          description: Email address or username
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: login_successful
+        redirect:
+          type: string
+          format: uri
+        user:
+          $ref: '#/components/schemas/User'
+
+    VerifyEmailRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: 64-character hexadecimal verification token
+
+    ResendVerificationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    ProtectedResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    QueryRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Natural language query description
+          example: "Show all users who have made a purchase in the last week"
+
+    QueryResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          description: Generated SQL query from the AI agent
+          example: "SELECT * FROM users WHERE last_purchase >= NOW() - INTERVAL '7 days';"
+
+    QueryHistoryItem:
+      type: object
+      properties:
+        ID:
+          type: integer
+        UserID:
+          type: integer
+        Query:
+          type: string
+          description: Original natural language query
+        Response:
+          type: string
+          description: SQL query returned by the agent
+        CreatedAt:
+          type: string
+          format: date-time
+
+    QueryHistoryResponse:
+      type: object
+      properties:
+        queries:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryHistoryItem'
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Status message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      example:
+        error: Invalid credentials
